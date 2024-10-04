@@ -56,7 +56,7 @@ class MPViewModel : ViewModel() {
 
     private fun sendFrames(bitmap: Bitmap) : Unit {
         Log.d("MainActivity", "Sending frames across net")
-        val url = URL("http://15.223.71.194:3112/upload55019283475")
+        val url = URL("http://3.96.152.145:3112/upload55019283475")
         val urlConnection = url.openConnection() as HttpURLConnection
 
         try {
