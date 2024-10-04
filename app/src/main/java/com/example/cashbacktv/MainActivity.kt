@@ -40,13 +40,15 @@ class MainActivity : ComponentActivity() {
     // private lateinit var mediaProjectionReceiver: BroadcastReceiver
 
     private lateinit var mpService: MPService
+    private lateinit var mpServiceBinder : MPService.MPBinder
     private var isBound = false
 
     // syntax for anonymous class .. = object [: parent] {...}
     private val mpServiceConn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val binder = service as MPService.MPBinder
-            binder.getService().setCallback { img: Image ->
+            Log.d("MainActivity","Service bound")
+            mpServiceBinder = service as MPService.MPBinder
+            mpServiceBinder.getService().setCallback { img: Image ->
                 Log.d("MainActivity", "Activity received image. Size ${img.width}, ${img.height}")
                 val planes = img.planes
                 if (planes.isEmpty()) {
@@ -73,11 +75,12 @@ class MainActivity : ComponentActivity() {
                 }
                 img.close()
             }
-            mpService = binder.getService()
+            mpService = mpServiceBinder.getService()
             isBound = true
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            Log.d("MainActivity", "Service unbound")
             isBound = false
         }
     }
@@ -101,7 +104,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CashbacktvTheme {
-                CashBackTvApp(viewmodel=viewmodel, onButtonClick = { projectScreen() })
+                CashBackTvApp(viewmodel=viewmodel, onButtonClick = { projectScreen() },
+                    stopService = {
+                        var intent = Intent(this, MPService::class.java)
+                        stopService(intent)
+                    })
             }
         }
 
@@ -110,7 +117,7 @@ class MainActivity : ComponentActivity() {
         // Register the channel with the system
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.createNotificationChannel(channel)
-//
+
 //
         // ================ USING A RECIEVER IS BEING PHASED OUT, SO THIS DIDNT WORK ================
 //        // anonymous class, doesn't require inclusion in the manifest
@@ -145,7 +152,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         val intent = Intent(this, MPService::class.java)
-        bindService(intent, mpServiceConn, Context.BIND_AUTO_CREATE)
+        bindService(intent, mpServiceConn, 0)
     }
 
     override fun onStop() {
@@ -155,19 +162,24 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         Log.d("MainActivity", "Activity ONPAUSE called")
-        unbindService(mpServiceConn)
+        if (isBound) {
+            mpService.setCallback { Log.d("MainActivity", "Thought you were gonna crash my app huh :*(") }
+            unbindService(mpServiceConn)
+        }
         super.onPause()
     }
 
     override fun onResume() {
         Log.d("MainActivity", "Activity ONRESUME called")
         super.onResume()
+
         val intent = Intent(this, MPService::class.java)
-        bindService(intent, mpServiceConn, Context.BIND_AUTO_CREATE)
+        bindService(intent, mpServiceConn, 0)
     }
 
     override fun onDestroy() {
         Log.d("MainActivity", "ONDESTROY called.")
+
         super.onDestroy()
     }
     private fun projectScreenSetup() {
@@ -193,8 +205,8 @@ class MainActivity : ComponentActivity() {
         // - callback to handle the result.
         // allows the generated activity to request permissions and return a result
         // the permission is specified by the intent during launch
-        val serviceIntent = Intent(this, MPService::class.java)
-        serviceIntent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+//        val serviceIntent = Intent(this, MPService::class.java)
+//        serviceIntent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         // Start the media projection activity, gets the result, if the result is OK, then
         // starts the service. The service needs the permission in the context of the activity
         // to start so startForeGroundService MUST be called inside the check for the result
@@ -210,6 +222,7 @@ class MainActivity : ComponentActivity() {
                 serviceIntent.putExtra("resultCode", result.resultCode)
                 serviceIntent.putExtra("resultData", result.data) // Pass the data to the service
                 startForegroundService(serviceIntent)
+                bindService(intent, mpServiceConn, 0)
                 Log.d("MainActivity", "Successfully started service")
             }
         }

@@ -2,6 +2,7 @@ package com.example.cashbacktv.services
 
 import android.app.Activity
 import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -48,6 +49,25 @@ class MPService : Service() {
 
     override fun onCreate() {
         Log.d("MainActivity", "Service created")
+
+        // I need a channel for this notification
+        val channel = NotificationChannel(
+            "MEDIA_PROJ",
+            "Media Projection",
+
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for media projection"
+            enableVibration(true)
+            setSound(null, null)
+        }
+        // Register the channel with the system
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.createNotificationChannel(channel)
+
+        // Create a notification for the foreground service
+        val notification = createNotification()
+        startForeground(1050, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         super.onCreate()
     }
 
@@ -72,6 +92,7 @@ class MPService : Service() {
 
             var image = imageReader.acquireLatestImage()
             if (System.currentTimeMillis() - lastTime > (1000 / 8)) {
+                Log.d("MainActivity", "Got frame")
                 image?.let { img ->
 
                     currImage = img
@@ -84,14 +105,11 @@ class MPService : Service() {
                 image.close()
             }
 
-        }, Handler(Looper.getMainLooper()))
+        }, null)
 
         if (resultCode == Activity.RESULT_OK) {
             Log.d("MainActivity", "Permission granted")
 
-            // Create a notification for the foreground service
-            val notification = createNotification()
-            startForeground(1050, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
 
             val mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
             val mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, resultData!!)
@@ -121,7 +139,7 @@ class MPService : Service() {
         }
 
         // want the service to restart if it's killed
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
 
@@ -130,9 +148,7 @@ class MPService : Service() {
 
         val largeIcon = BitmapFactory.decodeResource(resources, R.drawable.television_icon) // Decode drawable to Bitmap
 
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
+        val intent = Intent(applicationContext, MainActivity::class.java)
         val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
         val builder = NotificationCompat.Builder(this, "MEDIA_PROJ")
@@ -147,8 +163,11 @@ class MPService : Service() {
             .setFullScreenIntent(pendingIntent, true)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(false)
-
-        return builder.build()
+            .setUsesChronometer(true)
+            .setOngoing(true)
+        var notif = builder.build()
+        notif.flags = Notification.FLAG_ONGOING_EVENT
+        return notif
     }
 
     private fun updateNotification() {
@@ -157,7 +176,14 @@ class MPService : Service() {
         notificationManager.notify(1050, notification)
     }
 
-    override fun onBind(intent: Intent?): IBinder {
+    override fun onBind(intent: Intent?): IBinder? {
         return mpBinder
+    }
+
+
+    override fun onDestroy() {
+        Log.d("MainActivity", "Service destroyed")
+        setCallback {  }
+        super.onDestroy()
     }
 }

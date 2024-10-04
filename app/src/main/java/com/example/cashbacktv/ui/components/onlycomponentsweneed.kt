@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.example.cashbacktv.viewmodel.MPViewModel
 
 @Composable
-fun CashBackTvApp(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButtonClick: () -> Unit) {
+fun CashBackTvApp(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButtonClick: () -> Unit, stopService: () -> Unit) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Box(modifier = Modifier
             .fillMaxSize(),
@@ -46,7 +47,7 @@ fun CashBackTvApp(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButto
                     text = "Current Frame: ")
                 ImageDisplay(modifier = Modifier.align(Alignment.CenterHorizontally), viewmodel=viewmodel)
                 Greeting(
-                    modifier = Modifier.padding(innerPadding), viewmodel=viewmodel, onButtonClick=onButtonClick
+                    modifier = Modifier.padding(innerPadding), viewmodel=viewmodel, onButtonClick=onButtonClick, stopService=stopService,
                 )
             }
         }
@@ -55,7 +56,7 @@ fun CashBackTvApp(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButto
 }
 
 @Composable
-fun Greeting(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButtonClick: () -> Unit) {
+fun Greeting(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButtonClick: () -> Unit, stopService: () -> Unit) {
 
     val frame: Int? by viewmodel.count.observeAsState(0)
 
@@ -76,8 +77,14 @@ fun Greeting(modifier: Modifier = Modifier, viewmodel: MPViewModel, onButtonClic
                         .align(Alignment.CenterHorizontally)
                         .padding(10.dp)
                 )
-                Button(onClick = { onButtonClick() }) {
-                    Text("Start Screen Projection")
+                Row(modifier=Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+                    Button(modifier=Modifier.weight(1f), onClick = { onButtonClick() }) {
+                        Text("Start Screen Projection")
+                    }
+                    Button(modifier=Modifier.weight(1f),onClick = { stopService() }) {
+                        Text("Stop Screen Projection")
+                    }
                 }
             }
         }
